@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isModerator() {
+      return isSignedIn()
+        && (request.auth.token.role == 'moderator' || request.auth.token.role == 'admin');
+    }
+
+    function isValidImage() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 8 * 1024 * 1024; // 8 MB
+    }
+
+    // Task proof screenshots — users upload under their own path, admins can view all.
+    match /proofs/{userId}/{submissionId}/{fileName} {
+      allow read: if isOwner(userId) || isModerator();
+      allow create: if isOwner(userId) && isValidImage();
+      allow update: if false; // proof is immutable once uploaded
+      allow delete: if false;
+    }
+
+    // Profile images
+    match /profile-images/{userId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) && isValidImage();
+      allow delete: if isOwner(userId);
+    }
+
+    // Admin-managed platform assets (logo, etc.)
+    match /platform/{fileName} {
+      allow read: if true;
+      allow write: if isModerator() && isValidImage();
+    }
+  }
+}

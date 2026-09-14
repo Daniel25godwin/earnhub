@@ -1,0 +1,174 @@
+rules_version = '2';
+
+// ══════════════════════════════════════════════════════════════════════════
+// ⚠️  TESTING-PHASE RULES — NOT SAFE FOR REAL MONEY
+//
+// This app currently has NO backend server (no Cloud Functions, no API server).
+// All logic — including wallet balance changes — runs directly in the browser
+// and writes straight to Firestore. That means:
+//
+//   • Anyone signed in can open browser dev tools and directly edit their own
+//     wallets/{uid} document — set availableBalance to any number they want.
+//   • There is no server-side authority checking that a reward was actually
+//     earned, that a withdrawal doesn't exceed balance, etc.
+//
+// This is an accepted, deliberate trade-off for early local/testing use only.
+// BEFORE any real user's money moves through this app, wallet-affecting writes
+// (wallets, transactions, withdrawals, taskSubmissions status changes, admin
+// actions) must be moved behind a real backend authority — either Firebase
+// Cloud Functions (requires the Blaze plan) or a hosted Node/Express server —
+// and these rules tightened back down to deny direct client writes to those
+// collections, the way the original architecture design intended.
+// ══════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function role() {
+      return isSignedIn() ? request.auth.token.role : null;
+    }
+
+    function isModerator() {
+      return role() == 'moderator' || role() == 'admin';
+    }
+
+    function isAdmin() {
+      return role() == 'admin';
+    }
+
+    // Custom claims (role) aren't set by anything in the testing-phase setup yet.
+    // To bootstrap your own admin account without Cloud Functions, run a local
+    // Node script with firebase-admin + your service account key, calling
+    // adminAuth.setCustomUserClaims(uid, { role: 'admin' }) once. This does not
+    // require the Blaze plan — it's just a script hitting Google's API directly.
+
+    // ── usernames (reservation collection — enforces global uniqueness) ──
+    match /usernames/{usernameLower} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn(); // client reserves it directly during signup
+      allow update, delete: if false;
+    }
+
+    // ── users ──────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isModerator();
+      allow create: if isOwner(userId); // client self-provisions at signup
+      // 'role' stays blocked even in testing mode — cheap, meaningful protection
+      // against a signed-in user granting themselves admin/moderator access.
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+      allow delete: if false;
+    }
+
+    // ── wallets ────────────────────────────────────────────────
+    // ⚠️ Client-writable during the testing phase — see the banner above.
+    match /wallets/{userId} {
+      allow read: if isOwner(userId) || isModerator();
+      allow write: if isOwner(userId) || isModerator();
+    }
+
+    // ── taskCategories ─────────────────────────────────────────
+    match /taskCategories/{categoryKey} {
+      allow read: if isSignedIn();
+      allow write: if false; // admin-updateSettings / seed script only
+    }
+
+    // ── tasks ──────────────────────────────────────────────────
+    match /tasks/{taskId} {
+      allow read: if isSignedIn()
+        && (resource.data.status == 'active' || isModerator());
+      allow write: if false; // admin-createTask / admin-updateTask / admin-deleteTask only
+    }
+
+    // ── taskSessions ───────────────────────────────────────────
+    match /taskSessions/{sessionId} {
+      allow read: if isSignedIn()
+        && (resource.data.userId == request.auth.uid || isModerator());
+      allow write: if false; // tasks-startTask / tasks-reportProgress callable functions only
+    }
+
+    // ── taskSubmissions ────────────────────────────────────────
+    match /taskSubmissions/{submissionId} {
+      allow read: if isSignedIn()
+        && (resource.data.userId == request.auth.uid || isModerator());
+      // Status transitions to approved/rejected/paid happen only via
+      // admin-reviewSubmission / the reward-crediting transaction — never client writes.
+      allow write: if false; // tasks-submitTask callable function only
+    }
+
+    // ── transactions ───────────────────────────────────────────
+    match /transactions/{transactionId} {
+      allow read: if isSignedIn()
+        && (resource.data.userId == request.auth.uid || isModerator());
+      allow write: if false; // written only inside the reward/withdrawal Admin SDK transactions
+    }
+
+    // ── withdrawalMethods ──────────────────────────────────────
+    match /withdrawalMethods/{methodKey} {
+      allow read: if isSignedIn();
+      allow write: if false; // admin-updateSettings only
+    }
+
+    // ── withdrawals ────────────────────────────────────────────
+    match /withdrawals/{withdrawalId} {
+      allow read: if isSignedIn()
+        && (resource.data.userId == request.auth.uid || isModerator());
+      allow write: if false; // withdrawals-requestWithdrawal / admin-reviewWithdrawal only
+    }
+
+    // ── referrals ──────────────────────────────────────────────
+    match /referrals/{referredUserId} {
+      allow read: if isSignedIn()
+        && (referredUserId == request.auth.uid
+            || resource.data.referrerId == request.auth.uid
+            || isModerator());
+      // Client creates its own referral record directly during the testing phase.
+      allow create: if isOwner(referredUserId);
+      allow update, delete: if false;
+    }
+
+    // ── notifications ──────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Users may only toggle isRead on their own notifications.
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow create: if false; // Cloud Functions only (triggers / admin-notifyUser)
+      allow delete: if false;
+    }
+
+    // ── userSessions (device/IP tracking for fraud prevention) ─
+    match /userSessions/{sessionId} {
+      allow read: if isModerator();
+      allow write: if false; // written by callable functions on login/task actions
+    }
+
+    // ── fraudFlags ─────────────────────────────────────────────
+    match /fraudFlags/{flagId} {
+      allow read: if isModerator();
+      allow write: if false; // fraud scoring service (Admin SDK) only
+    }
+
+    // ── auditLogs ──────────────────────────────────────────────
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Admin SDK only, written alongside every sensitive admin action
+    }
+
+    // ── settings/platform (singleton) ───────────────────────────
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false; // admin-updateSettings only
+    }
+  }
+}

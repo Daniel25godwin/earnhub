@@ -1,0 +1,28 @@
+{
+  "name": "functions",
+  "description": "EarnHub Cloud Functions — all business-logic mutations (task actions, withdrawals, admin operations) live here as callable functions, plus Firestore triggers and scheduled jobs.",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2",
+    "@types/node": "^20.16.5",
+    "firebase-functions-test": "^3.3.0"
+  },
+  "private": true
+}
