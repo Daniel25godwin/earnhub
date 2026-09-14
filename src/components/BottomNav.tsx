@@ -12,10 +12,10 @@ import { Home, Zap, Wallet, Users, Banknote } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Home', icon: Home, end: true },
-  { to: '/earn', label: 'Earn', icon: Zap },
-  { to: '/wallet', label: 'Wallet', icon: Wallet },
-  { to: '/referrals', label: 'Invite', icon: Users },
-  { to: '/wallet/withdraw', label: 'Withdraw', icon: Banknote },
+  { to: '/earn', label: 'Earn', icon: Zap, end: false },
+  { to: '/wallet', label: 'Wallet', icon: Wallet, end: false },
+  { to: '/referrals', label: 'Invite', icon: Users, end: false },
+  { to: '/wallet/withdraw', label: 'Withdraw', icon: Banknote, end: false },
 ] as const
 
 export function BottomNav() {
