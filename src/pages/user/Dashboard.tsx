@@ -124,7 +124,7 @@ export default function Dashboard() {
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {role === 'ADMIN' && (
+          {role === 'admin' && (
             <Link to="/admin">
               <Button variant="secondary">Admin panel</Button>
             </Link>
