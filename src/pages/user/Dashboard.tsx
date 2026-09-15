@@ -4,6 +4,11 @@
 // $0 with no transactions, and updates automatically whenever a task is
 // completed on the Earn page or a referral lands (once an Invite page
 // calls creditReferral()). Make sure <WalletProvider> wraps the app root.
+//
+// 4 Banner468x60 ad slots are placed through the page. They currently
+// all use the same ad unit (only one banner code has been wired up) —
+// swap some of these for a different unit (e.g. Native Banner) once
+// that code is available, so the page isn't showing 4 identical ads.
 
 import { useState } from 'react'
 import { signOut, sendEmailVerification } from 'firebase/auth'
@@ -30,6 +35,7 @@ import { Button } from '@/components/ui/Button'
 import { BottomNav } from '@/components/BottomNav'
 import { StatusBadge, type Tone } from '@/components/StatusBadge'
 import { BackButton } from '@/components/BackButton'
+import { Banner468x60 } from '@/components/ads/Banner468x60'
 import { formatMoney, formatRelativeTime } from '@/lib/format'
 import { TASKS, CATEGORY_LABELS, DIFFICULTY_TONE } from '@/data/tasks'
 import type { TransactionType, TransactionStatus } from '@/lib/wallet-store'
@@ -136,6 +142,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Ad slot 1 — top of page, above everything else */}
+      <Banner468x60 />
+
       {/* Email verification nudge */}
       {firebaseUser && !firebaseUser.emailVerified && (
         <div className="flex flex-col gap-3 rounded-2xl border border-warning-100 bg-warning-100/40 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -194,6 +203,9 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Ad slot 2 — between balance card and the two-column content */}
+      <Banner468x60 />
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Left column: transactions + recommended tasks */}
@@ -275,6 +287,9 @@ export default function Dashboard() {
               <ChevronRight className="h-3.5 w-3.5" />
             </span>
           </Link>
+
+          {/* Ad slot 3 — between invite banner and recommended tasks */}
+          <Banner468x60 />
 
           {/* Recommended tasks */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -381,6 +396,9 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Ad slot 4 — bottom of page, before nav */}
+      <Banner468x60 />
 
       <BottomNav />
     </div>

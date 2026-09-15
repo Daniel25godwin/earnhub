@@ -1,25 +1,42 @@
-// Suggested location: src/pages/Earn.tsx
-//
-// Clicking a task simulates completing it (a brief "watching..." state
-// stands in for a real ad SDK / survey partner), then credits the reward
-// through the shared wallet store — so the amount shows up on Dashboard
-// immediately. Each task can only be completed once.
-
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Clock, Search, Check, Loader2 } from 'lucide-react'
 import { BottomNav } from '@/components/BottomNav'
 import { BackButton } from '@/components/BackButton'
 import { StatusBadge } from '@/components/StatusBadge'
+import { Banner468x60 } from '@/components/ads/Banner468x60'
 import { formatMoney } from '@/lib/format'
 import { useWallet } from '@/lib/wallet-store'
 import { TASKS, CATEGORY_LABELS, DIFFICULTY_TONE, type AppTask } from '@/data/tasks'
 
-const SIMULATED_WATCH_MS = 1500
+const SMARTLINK_URL = 'https://www.profitableratecpmnetwork.com/zk8716jj3?key=25f5c645f2a424e49fa4b05c421bf952'
+const VERIFY_MS = 30000 // show "verifying" for 30s before the button flips to Completed
+const PENDING_KEY = 'earn:pendingVerification'
+
+// startedAt timestamps keyed by task id, persisted to localStorage so the
+// 30s countdown survives a full-page redirect/reload from the smartlink —
+// not just an in-memory timer, which a navigation would wipe out.
+function loadPending(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function savePending(map: Record<string, number>) {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(map))
+  } catch {
+    // ignore storage failures (private browsing, quota, etc.)
+  }
+}
 
 export default function Earn() {
   const wallet = useWallet()
   const [search, setSearch] = useState('')
-  const [inProgressId, setInProgressId] = useState<string | null>(null)
+  const [pending, setPending] = useState<Record<string, number>>(() => loadPending())
+  const [now, setNow] = useState(() => Date.now())
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -27,15 +44,55 @@ export default function Earn() {
     return TASKS.filter((t) => t.title.toLowerCase().includes(q))
   }, [search])
 
+  // Tick once a second: updates the countdown text and drops entries once
+  // their 30s window has passed (the task itself was already credited on tap).
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setNow(Date.now())
+      setPending((prev) => {
+        const next = { ...prev }
+        let changed = false
+        for (const [taskId, startedAt] of Object.entries(prev)) {
+          if (Date.now() - startedAt >= VERIFY_MS) {
+            delete next[taskId]
+            changed = true
+          }
+        }
+        if (changed) savePending(next)
+        return changed ? next : prev
+      })
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  function openSmartlink() {
+    const opened = window.open(SMARTLINK_URL, '_blank', 'noopener,noreferrer')
+    if (opened) return
+
+    // Popup blocked (common on mobile). Fall back to a synthetic anchor click,
+    // which mobile browsers allow because it's still inside the tap handler.
+    const a = document.createElement('a')
+    a.href = SMARTLINK_URL
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
   function handleComplete(task: AppTask) {
-    if (wallet.isTaskCompleted(task.id) || inProgressId) return
-    setInProgressId(task.id)
-    // Stand-in for actually watching the ad / finishing the survey.
-    // Swap this timeout for the real SDK callback when one's wired up.
-    setTimeout(() => {
-      wallet.creditTask(task)
-      setInProgressId(null)
-    }, SIMULATED_WATCH_MS)
+    if (wallet.isTaskCompleted(task.id) || pending[task.id]) return
+
+    // Credit right away — before opening the link — so the reward is safe
+    // even if the smartlink takes over this tab and unmounts the page.
+    // The 30s "verifying" state below is purely a display delay on top of that.
+    wallet.creditTask(task)
+
+    const next = { ...pending, [task.id]: Date.now() }
+    setPending(next)
+    savePending(next)
+
+    openSmartlink()
   }
 
   return (
@@ -48,6 +105,9 @@ export default function Earn() {
         <h1 className="text-2xl font-semibold text-slate-900">Find a task</h1>
         <p className="mt-1 text-sm text-slate-500">Complete tasks below to add to your balance.</p>
       </div>
+
+      {/* Banner ad */}
+      <Banner468x60 />
 
       {/* Search */}
       <div className="relative">
@@ -81,18 +141,21 @@ export default function Earn() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((task) => {
                 const completed = wallet.isTaskCompleted(task.id)
-                const inProgress = inProgressId === task.id
+                const startedAt = pending[task.id]
+                const verifying = completed && startedAt !== undefined && now - startedAt < VERIFY_MS
+                const secondsLeft = verifying ? Math.max(1, Math.ceil((VERIFY_MS - (now - startedAt)) / 1000)) : 0
+                const showCompleted = completed && !verifying
 
                 return (
                   <button
                     key={task.id}
                     type="button"
                     onClick={() => handleComplete(task)}
-                    disabled={completed || inProgress}
+                    disabled={completed || verifying}
                     className={`group rounded-xl border p-4 text-left transition-colors ${
-                      completed
+                      showCompleted
                         ? 'cursor-default border-slate-200 bg-slate-50 opacity-70'
-                        : inProgress
+                        : verifying
                           ? 'cursor-wait border-brand-300 bg-brand-50'
                           : 'border-slate-200 hover:border-brand-300 hover:bg-brand-50'
                     }`}
@@ -110,15 +173,15 @@ export default function Earn() {
                       <span className="text-sm font-semibold text-success-500">
                         +{formatMoney(task.rewardAmount)}
                       </span>
-                      {completed ? (
+                      {showCompleted ? (
                         <span className="flex items-center gap-1 text-xs font-medium text-success-500">
                           <Check className="h-3.5 w-3.5" />
                           Completed
                         </span>
-                      ) : inProgress ? (
+                      ) : verifying ? (
                         <span className="flex items-center gap-1 text-xs font-medium text-brand-600">
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Watching…
+                          Verifying… {secondsLeft}s
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-xs text-slate-500">
