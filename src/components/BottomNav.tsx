@@ -8,12 +8,12 @@
 // you have one — for now it's wired directly into Dashboard.tsx.
 
 import { NavLink } from 'react-router-dom'
-import { Home, Zap, Wallet, Users, Banknote } from 'lucide-react'
+import { Home, Zap, Trophy, Users, Banknote } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Home', icon: Home, end: true },
   { to: '/earn', label: 'Earn', icon: Zap, end: false },
-  { to: '/wallet', label: 'Wallet', icon: Wallet, end: false },
+  { to: '/leaderboard', label: 'Leaders', icon: Trophy, end: false },
   { to: '/referrals', label: 'Invite', icon: Users, end: false },
   { to: '/wallet/withdraw', label: 'Withdraw', icon: Banknote, end: false },
 ] as const
@@ -26,7 +26,7 @@ export function BottomNav() {
     >
       <ul className="mx-auto flex max-w-6xl items-stretch justify-between px-2 py-2">
         {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
-          <li key={to} className="flex-1">
+          <li key={to} className="min-w-0 flex-1">
             <NavLink
               to={to}
               end={end}
@@ -42,7 +42,7 @@ export function BottomNav() {
                     <Icon className="h-5 w-5" />
                   </span>
                   <span
-                    className={`whitespace-nowrap ${
+                    className={`w-full truncate text-center ${
                       isActive ? 'text-brand-600' : 'text-slate-500'
                     }`}
                   >

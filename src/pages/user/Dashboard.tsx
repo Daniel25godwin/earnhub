@@ -4,17 +4,11 @@
 // $0 with no transactions, and updates automatically whenever a task is
 // completed on the Earn page or a referral lands (once an Invite page
 // calls creditReferral()). Make sure <WalletProvider> wraps the app root.
-//
-// 4 Banner468x60 ad slots are placed through the page. They currently
-// all use the same ad unit (only one banner code has been wired up) —
-// swap some of these for a different unit (e.g. Native Banner) once
-// that code is available, so the page isn't showing 4 identical ads.
 
 import { useState } from 'react'
 import { signOut, sendEmailVerification } from 'firebase/auth'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Wallet as WalletIcon,
   Clock,
   TrendingUp,
   ArrowUpRight,
@@ -34,8 +28,6 @@ import { useWallet } from '@/lib/wallet-store'
 import { Button } from '@/components/ui/Button'
 import { BottomNav } from '@/components/BottomNav'
 import { StatusBadge, type Tone } from '@/components/StatusBadge'
-import { BackButton } from '@/components/BackButton'
-import { Banner468x60 } from '@/components/ads/Banner468x60'
 import { formatMoney, formatRelativeTime } from '@/lib/format'
 import { TASKS, CATEGORY_LABELS, DIFFICULTY_TONE } from '@/data/tasks'
 import type { TransactionType, TransactionStatus } from '@/lib/wallet-store'
@@ -118,32 +110,33 @@ export default function Dashboard() {
   const unreadCount = wallet.notifications.filter((n) => !n.isRead).length
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 pb-24 sm:p-6 lg:p-8 lg:pb-8">
-      <BackButton />
-
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div className="mx-auto max-w-6xl space-y-5 px-4 pb-24 pt-3 sm:px-6 sm:pt-5 lg:px-8 lg:pb-8 lg:pt-6">
+      {/* Top row — greeting + quick actions, no back button, minimal top space */}
+      <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-slate-500">{greeting()},</p>
-          <h1 className="text-2xl font-semibold text-slate-900">
+          <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-slate-900">
             {displayName} <span className="align-middle">👋</span>
           </h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           {role === 'admin' && (
-            <Link to="/admin">
-              <Button variant="secondary">Admin panel</Button>
+            <Link
+              to="/admin"
+              className="rounded-full border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
+            >
+              Admin
             </Link>
           )}
-          <Button variant="secondary" onClick={handleSignOut}>
-            <LogOut className="mr-1.5 h-4 w-4" />
-            Sign out
-          </Button>
+          <button
+            onClick={handleSignOut}
+            aria-label="Sign out"
+            className="rounded-full border border-slate-200 p-2.5 text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
-
-      {/* Ad slot 1 — top of page, above everything else */}
-      <Banner468x60 />
 
       {/* Email verification nudge */}
       {firebaseUser && !firebaseUser.emailVerified && (
@@ -163,55 +156,58 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Balance card */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-4 p-5">
-          <div className="flex items-center gap-4">
-            <div className="rounded-xl bg-success-100 p-3 text-success-500">
-              <WalletIcon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-500">Available balance</p>
-              <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
-                {formatMoney(wallet.availableBalance)}
-              </p>
-            </div>
-          </div>
+      {/* Hero balance card */}
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-brand-600 to-brand-700 p-6 text-white shadow-lg shadow-brand-600/20">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-16 left-1/3 h-40 w-40 rounded-full bg-white/5 blur-2xl"
+        />
+
+        <div className="relative flex items-start justify-between gap-3">
+          <p className="text-sm font-medium text-brand-100">Available balance</p>
           <Link to="/wallet/withdraw">
-            <Button className="rounded-full px-5">Withdraw</Button>
+            <Button className="rounded-full bg-white px-5 text-brand-700 shadow-none hover:bg-brand-50">
+              Withdraw
+            </Button>
           </Link>
         </div>
+        <p className="relative mt-2 text-4xl font-semibold tracking-tight">
+          {formatMoney(wallet.availableBalance)}
+        </p>
 
-        <div className="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100">
-          <Link to="/wallet" className="flex items-center gap-3 p-4 transition-colors hover:bg-slate-50">
-            <div className="rounded-full bg-warning-100 p-2 text-warning-500">
-              <Clock className="h-4 w-4" />
+        <div className="relative mt-6 grid grid-cols-2 gap-3 border-t border-white/15 pt-4">
+          <Link
+            to="/wallet"
+            className="rounded-2xl bg-white/10 p-3 transition-colors hover:bg-white/15"
+          >
+            <div className="flex items-center gap-1.5 text-xs text-brand-100">
+              <Clock className="h-3.5 w-3.5" />
+              Pending balance
             </div>
-            <div>
-              <p className="text-xs text-slate-500">Pending balance</p>
-              <p className="text-sm font-semibold text-slate-900">{formatMoney(wallet.pendingBalance)}</p>
-            </div>
+            <p className="mt-1 text-lg font-semibold">{formatMoney(wallet.pendingBalance)}</p>
           </Link>
-          <Link to="/wallet" className="flex items-center gap-3 p-4 transition-colors hover:bg-slate-50">
-            <div className="rounded-full bg-info-100 p-2 text-info-500">
-              <TrendingUp className="h-4 w-4" />
+          <Link
+            to="/wallet"
+            className="rounded-2xl bg-white/10 p-3 transition-colors hover:bg-white/15"
+          >
+            <div className="flex items-center gap-1.5 text-xs text-brand-100">
+              <TrendingUp className="h-3.5 w-3.5" />
+              Lifetime earnings
             </div>
-            <div>
-              <p className="text-xs text-slate-500">Lifetime earnings</p>
-              <p className="text-sm font-semibold text-slate-900">{formatMoney(wallet.lifetimeEarnings)}</p>
-            </div>
+            <p className="mt-1 text-lg font-semibold">{formatMoney(wallet.lifetimeEarnings)}</p>
           </Link>
         </div>
       </div>
-
-      {/* Ad slot 2 — between balance card and the two-column content */}
-      <Banner468x60 />
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Left column: transactions + recommended tasks */}
         <div className="space-y-5 lg:col-span-2">
           {/* Recent transactions */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-slate-900">Recent transactions</h2>
               <Link
@@ -288,11 +284,8 @@ export default function Dashboard() {
             </span>
           </Link>
 
-          {/* Ad slot 3 — between invite banner and recommended tasks */}
-          <Banner468x60 />
-
           {/* Recommended tasks */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-slate-900">Recommended for you</h2>
               <Link
@@ -346,7 +339,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right column: notifications */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-1">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 lg:col-span-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="h-4 w-4 text-slate-500" />
@@ -396,9 +389,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-
-      {/* Ad slot 4 — bottom of page, before nav */}
-      <Banner468x60 />
 
       <BottomNav />
     </div>

@@ -36,5 +36,5 @@ export function AdSlot({ options, scriptSrc, className }: AdSlotProps) {
     container.appendChild(loaderScript)
   }, [scriptSrc, options])
 
-  return <div ref={ref} className={className} />
+  return <div ref={ref} className={`overflow-hidden ${className ?? ''}`} />
 }

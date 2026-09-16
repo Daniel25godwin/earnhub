@@ -20,6 +20,7 @@ import MyTasks from '@/pages/user/MyTasks'
 import Wallet from '@/pages/user/Wallet'
 import Withdraw from '@/pages/user/Withdraw'
 import Referrals from '@/pages/user/Referrals'
+import Leaderboard from '@/pages/user/Leaderboard'
 import Notifications from '@/pages/user/Notifications'
 import Profile from '@/pages/user/Profile'
 import Settings from '@/pages/user/Settings'
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
           { path: '/wallet', element: <Wallet /> },
           { path: '/wallet/withdraw', element: <Withdraw /> },
           { path: '/referrals', element: <Referrals /> },
+          { path: '/leaderboard', element: <Leaderboard /> },
           { path: '/notifications', element: <Notifications /> },
           { path: '/profile', element: <Profile /> },
           { path: '/settings', element: <Settings /> },
